@@ -31,6 +31,7 @@ class Raven_ErrorHandler
     private $send_errors_last = false;
     private $error_types = -1;
     private $error_types_shutdown;
+    private $send_silented_errors = false;
 
     public function __construct($client, $send_errors_last = false)
     {
@@ -55,9 +56,13 @@ class Raven_ErrorHandler
 
     public function handleError($code, $message, $file = '', $line = 0, $context=array())
     {
-        if ($this->error_types & $code & error_reporting()) {
-          $e = new ErrorException($message, 0, $code, $file, $line);
-          $this->handleException($e, true, $context);
+        if (!$this->send_silented_errors && (error_reporting() == 0)) {
+            return;
+        }
+
+        if ($this->error_types & $code) {
+            $e = new ErrorException($message, 0, $code, $file, $line);
+            $this->handleException($e, true, $context);
         }
 
         if ($this->call_existing_error_handler && $this->old_error_handler) {
@@ -88,9 +93,10 @@ class Raven_ErrorHandler
         $this->call_existing_exception_handler = $call_existing_exception_handler;
     }
 
-    public function registerErrorHandler($call_existing_error_handler = true, $error_types = -1)
+    public function registerErrorHandler($call_existing_error_handler = true, $error_types = -1, $send_silented_errors = false)
     {
         $this->error_types = $error_types;
+        $this->send_silented_errors = $send_silented_errors;
         $this->old_error_handler = set_error_handler(array($this, 'handleError'), error_reporting());
         $this->call_existing_error_handler = $call_existing_error_handler;
     }
